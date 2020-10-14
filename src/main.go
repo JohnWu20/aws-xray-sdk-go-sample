@@ -24,11 +24,20 @@ const (
 // test upstream call
 func webServer() {
 	http.Handle("/", xray.Handler(xray.NewFixedSegmentNamer("SampleApplication"), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
+		testSQL() // SQL calls
+		time.Sleep(1 * time.Second)
 		w.Write([]byte("Hello XRay Go SDK Customer!"))
 	})))
+
 	log.Println("SampleApp is listening on port 8000. Visit localhost:8000/ in your browser to generate segments on incoming request!")
-	http.ListenAndServe(":8000", nil)
+
+	listenAddress := os.Getenv("LISTEN_ADDRESS")
+	if listenAddress == "" {
+		listenAddress = ":8000"
+	}
+
+	log.Printf("SampleApp is listening on %s !", listenAddress)
+	http.ListenAndServe(listenAddress, nil)
 }
 
 // test downstream aws calls
@@ -61,6 +70,7 @@ func testAWSCalls() {
 		log.Println(err)
 		return
 	}
+	log.Println("downstream aws calls successfully")
 }
 
 // trace SQL queries
@@ -83,7 +93,7 @@ func testSQL() {
 		return
 	}
 
-	// Transaction
+	// Transaction ：
 	if err := transaction(ctx, db); err != nil {
 		log.Println(err)
 		return
@@ -94,6 +104,8 @@ func testSQL() {
 		log.Println(err)
 		return
 	}
+
+	log.Println("Mysql SQL calls successfully")
 }
 
 func transaction(ctx context.Context, db *sql.DB) error {
@@ -125,11 +137,10 @@ func transaction(ctx context.Context, db *sql.DB) error {
 }
 
 func main() {
-	log.Println("SampleApp Starts")
 	testAWSCalls() // Outgoing AWS SDK calls
 	time.Sleep(1 * time.Second)
-	testSQL() // SQL calls
-	time.Sleep(1 * time.Second)
+	log.Println("SampleApp Starts")
 	webServer() // Upstream calls
+
 }
 
